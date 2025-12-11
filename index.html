@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Image Detector</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar container">
+      <div class="brand">
+        <div class="logo">AI<span>Detect</span></div>
+        <div class="tag">Is this image AI-generated?</div>
+      </div>
+      <a class="model-link" href="https://huggingface.co/Organika/sdxl-detector" target="_blank">Model</a>
+    </header>
+
+    <main class="container main-card">
+      <div class="row gx-4">
+        <div class="col-lg-5 left-panel">
+          <div class="upload-area card p-4">
+            <div class="upload-title">Upload image</div>
+            <form method="post" enctype="multipart/form-data" id="uploadForm">
+              <label class="file-drop" id="fileDrop">
+                <input type="file" name="image" id="imageInput" accept="image/*" required>
+                <div class="drop-inner">
+                  <svg class="icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v12"/><path d="M21 12l-9-9-9 9"/><path d="M3 21h18"/></svg>
+                  <div class="drop-text">Click or drag an image here</div>
+                  <div class="hint">PNG / JPG / WebP</div>
+                </div>
+              </label>
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-primary w-100" type="submit">Analyze</button>
+                <button class="btn btn-outline-secondary w-100" id="clearBtn" type="button">Clear</button>
+              </div>
+            </form>
+
+            <div class="samples mt-3">
+              <div class="samples-title">Try sample images</div>
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-sm sample-btn" data-src="https://images.unsplash.com/photo-1541698444083-023c97d3f4b6?w=1200">Photo</button>
+                <button class="btn btn-sm sample-btn" data-src="https://images.unsplash.com/photo-1504198453319-5ce911bafcde?w=1200">Portrait</button>
+                <button class="btn btn-sm sample-btn" data-src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=1200">Artwork</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview card p-3 mt-4">
+            <div class="preview-title">Preview</div>
+            <div class="preview-box" id="previewBox">
+              <img id="previewImg" src="" alt="" />
+              <div class="preview-empty">No image selected</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-7 right-panel">
+          <div class="result-card card p-4">
+            <div class="result-header d-flex align-items-center mb-3">
+              <div>
+                <h4 class="mb-0">Result</h4>
+                <div class="muted small">AI vs Non-AI confidence</div>
+              </div>
+              <div class="ms-auto text-end small muted">Model: <strong>sdxl-detector</strong></div>
+            </div>
+
+            {% if uploaded %}
+            <div class="result-body">
+              <div class="top-result d-flex align-items-center mb-3">
+                <div class="result-bubble">{{ prediction.label }}</div>
+                <div class="result-percent ms-3">{{ (prediction.score * 100) | round(2) }}%</div>
+              </div>
+
+              <div class="bars mb-3">
+                {% for r in results %}
+                <div class="bar-row">
+                  <div class="bar-label">{{ r.label }}</div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width: {{ (r.score * 100) }}%;"></div>
+                  </div>
+                  <div class="bar-value">{{ (r.score * 100) | round(2) }}%</div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% else %}
+            <div class="placeholder text-center py-5">
+              <div class="muted">Upload an image and click Analyze.</div>
+            </div>
+            {% endif %}
+
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="container footer">
+      <div class="foot-left">AI Image Detector</div>
+      <div class="foot-right">Using SDXL Detector</div>
+    </footer>
+  </div>
+
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const previewImg = document.getElementById('previewImg');
+    const previewBox = document.getElementById('previewBox');
+    const fileDrop = document.getElementById('fileDrop');
+    const clearBtn = document.getElementById('clearBtn');
+    const uploadForm = document.getElementById('uploadForm');
+
+    function showPreview(file) {
+      const url = typeof file === 'string' ? file : URL.createObjectURL(file);
+      previewImg.src = url;
+      previewImg.onload = () => {
+        previewBox.classList.add('has-img');
+        const empty = previewBox.querySelector('.preview-empty');
+        if (empty) empty.style.display = 'none';
+      };
+    }
+
+    imageInput.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (f) showPreview(f);
+    });
+
+    fileDrop.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileDrop.classList.add('dragover');
+    });
+    fileDrop.addEventListener('dragleave', () => {
+      fileDrop.classList.remove('dragover');
+    });
+    fileDrop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileDrop.classList.remove('dragover');
+      const f = e.dataTransfer.files[0];
+      if (f) {
+        imageInput.files = e.dataTransfer.files;
+        showPreview(f);
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      imageInput.value = '';
+      previewImg.src = '';
+      previewBox.classList.remove('has-img');
+      const empty = previewBox.querySelector('.preview-empty');
+      if (empty) empty.style.display = 'flex';
+    });
+
+    document.querySelectorAll('.sample-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        const src = b.getAttribute('data-src');
+        fetch(src).then(r => r.blob()).then(blob => {
+          const file = new File([blob], 'sample.jpg', { type: blob.type });
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          imageInput.files = dt.files;
+          showPreview(file);
+        });
+      });
+    });
+
+    uploadForm.addEventListener('submit', () => {
+      const btn = uploadForm.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.innerText = 'Analyzing...';
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
